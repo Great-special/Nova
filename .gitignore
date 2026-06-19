@@ -1,0 +1,7 @@
+nova_env
+__pycache__
+*.pyc
+*.pyo
+.env
+pytest-cache
+.coverage
