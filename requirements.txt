@@ -16,3 +16,7 @@ numpy>=1.24.0
 
 # ── Utilities ─────────────────────────────────────────────
 requests>=2.31.0         # (optional, for extended features)
+pywhatkit>=5.4
+beautifulsoup4>=4.12
+pyfiglet>=1.0
+google-api-python-client>=2.0

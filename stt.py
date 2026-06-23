@@ -16,6 +16,7 @@ from config import (
 )
 
 _recognizer = sr.Recognizer()
+_recognizer.pause_threshold = 1.5
 _microphone = sr.Microphone()
 _whisper_model = None
 

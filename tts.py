@@ -40,7 +40,7 @@ def _speak_gtts(text: str) -> bool:
 
         _init_pygame()
 
-        tts = gTTS(text=text, lang="en", slow=False)
+        tts = gTTS(text=text, lang="en", tld="co.uk", slow=False)
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
             tmp_path = f.name
         tts.save(tmp_path)
@@ -69,7 +69,7 @@ def _speak_pyttsx3(text: str):
 # ── Public API ─────────────────────────────────────────────
 def speak(text: str):
     """Speak text aloud and also print it to console."""
-    print(f"\n🔊 Nova: {text}\n")
+    print(f"\n🔊 Mira: {text}\n")
 
     engine = TTS_ENGINE.lower()
 

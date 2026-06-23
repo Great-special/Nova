@@ -11,11 +11,27 @@ import json
 import glob
 import platform
 
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+import pywhatkit
+
+import brain
 from config import (
     KNOWN_APPS, LOCAL_MUSIC_DIR,
     OPENWEATHER_API_KEY, DEFAULT_CITY,
     PREFERRED_BROWSER,
+    GOOGLE_CSE_API_KEY, GOOGLE_CSE_ID,
 )
+
+# Lazily-built Google Custom Search service — built once, reused across calls.
+_cse_service = None
+
+
+def _get_cse_service():
+    global _cse_service
+    if _cse_service is None:
+        _cse_service = build("customsearch", "v1", developerKey=GOOGLE_CSE_API_KEY, cache_discovery=False)
+    return _cse_service
 
 
 # ══════════════════════════════════════════════════════════
@@ -75,11 +91,16 @@ def open_app(app_name: str) -> str:
 #  SKILL 2 — PLAY MUSIC (YouTube or local)
 # ══════════════════════════════════════════════════════════
 def play_youtube(query: str) -> str:
-    """Search YouTube and open the results page."""
-    encoded = urllib.parse.quote(query)
-    url = f"https://www.youtube.com/results?search_query={encoded}"
-    _open_url(url)
-    return f"Searching YouTube for: {query}"
+    """Play the first matching YouTube result directly (no search page)."""
+    try:
+        pywhatkit.playonyt(query)
+        return f"Playing on YouTube: {query}"
+    except Exception as e:
+        print(f"[Skills/YouTube] playonyt failed: {e}")
+        # Fall back to opening a search page so the user isn't left stranded
+        encoded = urllib.parse.quote(query)
+        _open_url(f"https://www.youtube.com/results?search_query={encoded}")
+        return f"Couldn't auto-play that, so I opened YouTube search for: {query}"
 
 
 def play_local_music(query: str) -> str:
@@ -201,12 +222,71 @@ def lookup_stock(ticker: str) -> str:
 # ══════════════════════════════════════════════════════════
 #  SKILL 5 — WEB SEARCH (open browser)
 # ══════════════════════════════════════════════════════════
-def web_search(query: str) -> str:
-    """Open Google search results for the given query."""
-    encoded = urllib.parse.quote(query)
-    url = f"https://www.google.com/search?q={encoded}"
-    _open_url(url)
-    return f"Searching the web for: {query}"
+def _google_cse_snippet(query: str) -> str | None:
+    """
+    Query Google's Custom Search JSON API and return the first result's
+    snippet text. Returns None on any failure (missing/invalid credentials,
+    daily quota exhausted, no results, network error, etc.) — this is a
+    best-effort lookup, not a guaranteed source.
+    """
+    if GOOGLE_CSE_API_KEY == "YOUR_GOOGLE_CSE_API_KEY" or GOOGLE_CSE_ID == "YOUR_GOOGLE_CSE_ID":
+        print("[Skills/Search] Google CSE credentials not configured in config.py.")
+        return None
+
+    try:
+        service = _get_cse_service()
+        result = service.cse().list(q=query, cx=GOOGLE_CSE_ID, num=1).execute()
+        items = result.get("items", [])
+        if not items:
+            print("[Skills/Search] Google CSE returned no results.")
+            return None
+        snippet = items[0].get("snippet", "").strip()
+        return snippet or None
+
+    except HttpError as e:
+        # Most commonly: daily quota (100/day) exhausted, or invalid key/cx.
+        print(f"[Skills/Search] Google CSE API error: {e}")
+        return None
+    except Exception as e:
+        print(f"[Skills/Search] Google CSE lookup failed: {e}")
+        return None
+
+
+def web_search(query: str, open_browser: bool = True) -> str:
+    """
+    Try to answer `query` with a short snippet, speaking real content
+    instead of just a generic confirmation.
+
+    Order of attempts:
+      1. Google Custom Search JSON API (100 free queries/day).
+      2. If that fails (no credentials, quota exhausted, no results),
+         ask Gemini directly for a short factual answer (standalone
+         call, no chat history, no HF/OpenRouter cascade).
+      3. If that also fails, return a generic "couldn't find" message.
+
+    When open_browser=True (the default — used for voice commands), a
+    Google results tab is also opened, mirroring the previous behaviour,
+    and the final fallback text differs slightly since a tab is available
+    for the user to check themselves. When open_browser=False (used by
+    main.startup()), no tab is opened — this is purely a spoken-content
+    lookup, so the final fallback is just the generic failure message.
+    """
+    snippet = _google_cse_snippet(query)
+
+    if snippet is None:
+        print("[Skills/Search] Google CSE failed, trying Gemini ...")
+        snippet = brain.ask_gemini_only(query)
+
+    if open_browser:
+        encoded = urllib.parse.quote(query)
+        _open_url(f"https://www.google.com/search?q={encoded}")
+
+    if snippet:
+        return snippet
+
+    if open_browser:
+        return f"Searching the web for: {query}"
+    return "I couldn't find anything on that right now."
 
 
 # ══════════════════════════════════════════════════════════

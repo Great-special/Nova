@@ -8,9 +8,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Wake word
-WAKE_WORD = "nova"
+WAKE_WORD = "MIRA"
+USER = "sir g. i. g."
 
 # AI brain
+HF_API_KEY = os.environ.get("HF_API_KEY", "YOUR_HF_API_KEY")  
+HF_BASE_URL = os.environ.get("HF_BASE_URL", "https://router.huggingface.co/v1")
+
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY")
 GEMINI_MODEL = "gemini-2.5-flash"
 
@@ -20,6 +24,14 @@ OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 # Weather
 OPENWEATHER_API_KEY = os.environ.get("OPENWEATHER_API_KEY", "YOUR_OPENWEATHER_API_KEY")
 DEFAULT_CITY = "Lagos"
+
+# Google Custom Search JSON API (used by skills.web_search for snippet
+# lookups). Requires an existing pre-2025 Custom Search JSON API project —
+# Google closed this API to new signups in 2025.
+#   API key:        https://console.cloud.google.com/apis/credentials
+#   Search Engine ID (cx): https://programmablesearchengine.google.com/
+GOOGLE_CSE_API_KEY = os.environ.get("GOOGLE_CSE_API_KEY", "YOUR_GOOGLE_CSE_API_KEY")
+GOOGLE_CSE_ID = os.environ.get("GOOGLE_CSE_ID", "YOUR_GOOGLE_CSE_ID")
 
 # Speech-to-text
 # "whisper" = local Whisper model
@@ -68,5 +80,5 @@ PREFERRED_BROWSER = ""
 
 # Listening settings
 MIC_TIMEOUT = None
-MIC_PHRASE_LIMIT = 180
+MIC_PHRASE_LIMIT = None
 AMBIENT_DURATION = 1
